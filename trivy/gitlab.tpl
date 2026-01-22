@@ -1,6 +1,6 @@
-{{- /* Template based on https://docs.gitlab.com/ee/user/application_security/container_scanning/#reports-json-format */ -}}
+{{- /* Template based on https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#reports-json-format */ -}}
 {
-  "version": "15.0.7",
+  "version": "15.2.3",
   "scan": {
     "analyzer": {
       "id": "trivy",
@@ -22,20 +22,12 @@
     },
     "start_time": "{{ now | date "2006-01-02T15:04:05" }}",
     "status": "success",
-    "type": "container_scanning"
+    "type": "dependency_scanning"
   },
-  {{- $image := "Unknown" -}}
-  {{- $os := "Unknown" -}}
-  {{- range . }}
-    {{- if eq .Class "os-pkgs" -}}
-      {{- $target := .Target }}
-        {{- $image = $target | regexFind "[^\\s]+" }}
-        {{- $os = $target | splitList "(" | last | trimSuffix ")" }}
-    {{- end }}
-  {{- end }}
   "vulnerabilities": [
   {{- $t_first := true }}
   {{- range . }}
+    {{- $target := .Target }}
     {{- range .Vulnerabilities -}}
     {{- if $t_first -}}
       {{- $t_first = false -}}
@@ -44,7 +36,7 @@
     {{- end }}
     {
       "id": "{{ .VulnerabilityID }}",
-      "name": {{ .Title | printf "%q" }},
+      "name": "{{ .VulnerabilityID }}",
       "description": {{ .Description | printf "%q" }},
       "severity": {{ if eq .Severity "UNKNOWN" -}}
                     "Unknown"
@@ -65,15 +57,13 @@
                     "No solution provided"
                   {{- end }},
       "location": {
+        "file": "{{ $target }}",
         "dependency": {
           "package": {
             "name": "{{ .PkgName }}"
           },
           "version": "{{ .InstalledVersion }}"
-        },
-        {{- /* TODO: No mapping available - https://github.com/aquasecurity/trivy/issues/332 */}}
-        "operating_system": "{{ $os }}",
-        "image": "{{ $image }}"
+        }
       },
       "identifiers": [
         {
